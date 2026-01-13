@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getProductBySlug } from "@/lib/products";
 import ProductGallery from "@/components/ProductGallery";
-import { ShoppingBag, Star, Check } from "lucide-react";
+import { ShoppingBag, Star, Check, X } from "lucide-react";
 
 export default async function ProductPage({
   params,
@@ -20,11 +21,23 @@ export default async function ProductPage({
   // Remove duplicates if any
   const uniqueImages = Array.from(new Set(images));
 
+  const formatPrice = (price: number) => {
+    return Math.floor(price).toLocaleString('vi-VN') + 'đ';
+  };
+
   return (
     <div className="container mx-auto px-6 py-32">
-       {/* Breadcrumb (simplified) */}
-       <div className="text-sm text-gray-400 mb-8">
-          Home / Shop / <span className="text-primary font-medium">{product.name}</span>
+       {/* Breadcrumb */}
+       <div className="text-sm text-gray-400 mb-8 flex items-center gap-2">
+          <Link href="/" className="hover:text-primary transition-colors">Trang chủ</Link> 
+          <span>/</span>
+          {product.categories.length > 0 && (
+             <>
+                <span className="text-gray-400">{product.categories[0].name}</span>
+                <span>/</span>
+             </>
+          )}
+          <span className="text-primary font-medium">{product.name}</span>
        </div>
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
@@ -46,17 +59,17 @@ export default async function ProductPage({
                       <Star key={i} size={18} fill="currentColor" />
                    ))}
                 </div>
-                <span className="text-gray-400 text-sm">(12 reviews)</span>
+                <span className="text-gray-400 text-sm">(12 đánh giá)</span>
              </div>
 
              <div className="text-3xl font-light text-primary mb-8">
                 {product.sale_price ? (
                     <>
-                       <span className="line-through text-gray-300 mr-4 text-2xl">${product.price}</span>
-                       <span className="text-red-500">${product.sale_price}</span>
+                       <span className="line-through text-gray-300 mr-4 text-2xl">{formatPrice(product.price)}</span>
+                       <span className="text-red-500 font-medium">{formatPrice(product.sale_price)}</span>
                     </>
                 ) : (
-                    <span>${product.price}</span>
+                    <span>{formatPrice(product.price)}</span>
                 )}
              </div>
 
@@ -68,7 +81,11 @@ export default async function ProductPage({
              <div className="mb-8">
                 <div className="flex items-center space-x-4 mb-4">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${product.inventory > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {product.inventory > 0 ? <><Check size={14} className="mr-1"/> In Stock</> : "Out of Stock"}
+                        {product.inventory > 0 ? (
+                            <><Check size={14} className="mr-1"/> Còn hàng</>
+                        ) : (
+                            <><X size={14} className="mr-1"/> Hết hàng</>
+                        )}
                     </span>
                     <span className="text-sm text-gray-400">SKU: {product.slug}</span>
                 </div>
@@ -78,14 +95,14 @@ export default async function ProductPage({
                   disabled={product.inventory <= 0}
                 >
                    <ShoppingBag size={20} />
-                   <span>Add to Cart</span>
+                   <span>Thêm vào giỏ</span>
                 </button>
              </div>
 
              {/* Accordion / Content placeholder */}
              <div className="mt-auto">
-                 <h3 className="font-bold text-primary border-b pb-2 mb-4">Description</h3>
-                 <div className="prose prose-sm text-gray-500" dangerouslySetInnerHTML={{ __html: product.content || '' }} />
+                 <h3 className="font-bold text-primary border-b pb-2 mb-4">Mô tả chi tiết</h3>
+                 <div className="prose prose-sm text-gray-500 max-w-none" dangerouslySetInnerHTML={{ __html: product.content || '' }} />
              </div>
           </div>
        </div>
