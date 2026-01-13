@@ -17,9 +17,6 @@ export const metadata: Metadata = {
   description: "Experience the epitome of luxury and comfort.",
 };
 
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,11 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${playfair.variable} antialiased font-sans bg-secondary text-primary`}>
-        <Navbar />
-        <main className="min-h-screen">
-          {children}
-        </main>
-        <Footer />
+        {children}
       </body>
     </html>
   );
