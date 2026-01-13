@@ -1,11 +1,45 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, ShoppingCart, User, Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchTerm.trim().length > 1) {
+        setIsSearching(true);
+        try {
+          const res = await fetch(`/api/products/search?q=${encodeURIComponent(searchTerm)}&limit=5`);
+          const data = await res.json();
+          setSuggestions(Array.isArray(data) ? data : []);
+        } catch (error) {
+          console.error("Search failed", error);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  const handleSearch = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && searchTerm.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchTerm)}`);
+      setIsSearchFocused(false);
+    }
+  };
 
   return (
     <nav
@@ -26,11 +60,56 @@ export default function Navbar() {
           <NavLink href="/contact">Contact</NavLink>
         </div>
 
-        {/* Icons */}
-        <div className="hidden md:flex items-center space-x-6">
-          <button className="hover:text-accent transition-colors p-1" aria-label="Search">
-            <Search size={20} />
-          </button>
+        {/* Search & Icons */}
+        <div className="flex items-center space-x-6">
+          {/* Search Bar */}
+          <div className="relative hidden md:block group">
+            <div className="relative">
+               <input
+                  type="text"
+                  placeholder="Tìm kiếm..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={handleSearch}
+                  onFocus={() => setIsSearchFocused(true)}
+                  // Delay hiding to allow click on suggestion
+                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)} 
+                  className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-[200px] transition-all focus:w-[300px]"
+               />
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+               {isSearching && (
+                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <span className="w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin block"></span>
+                 </div>
+               )}
+            </div>
+
+            {/* Suggestions Dropdown */}
+            {isSearchFocused && suggestions.length > 0 && (
+               <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden py-2">
+                  {suggestions.map((product) => (
+                     <Link 
+                        key={product.id} 
+                        href={`/${product.slug}`}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
+                     >
+                        <div className="w-10 h-10 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                           <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                           <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                           <p className="text-xs text-red-500 font-medium">
+                              {product.sale_price 
+                                ? Math.floor(product.sale_price).toLocaleString('vi-VN') + 'đ' 
+                                : Math.floor(product.price).toLocaleString('vi-VN') + 'đ'}
+                           </p>
+                        </div>
+                     </Link>
+                  ))}
+               </div>
+            )}
+          </div>
+
           <button className="hover:text-accent transition-colors p-1 relative" aria-label="Cart">
             <ShoppingCart size={20} />
             <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">0</span>
@@ -53,6 +132,16 @@ export default function Navbar() {
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full bg-white shadow-lg py-4 px-6 flex flex-col space-y-4 border-t border-gray-100 animate-slide-up">
+          <div className="px-2 pb-2">
+             <input
+                  type="text"
+                  placeholder="Search products..."
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  onKeyDown={handleSearch}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+             />
+          </div>
           <MobileNavLink href="/" onClick={() => setIsMobileMenuOpen(false)}>Home</MobileNavLink>
           <MobileNavLink href="/shop" onClick={() => setIsMobileMenuOpen(false)}>Shop</MobileNavLink>
           <MobileNavLink href="/collections" onClick={() => setIsMobileMenuOpen(false)}>Collections</MobileNavLink>
