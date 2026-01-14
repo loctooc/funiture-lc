@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getProductBySlug } from "@/lib/products";
 import ProductGallery from "@/components/ProductGallery";
+import AddToCartButton from "@/components/AddToCartButton";
 import { ShoppingBag, Star, Check, X } from "lucide-react";
 
 export default async function ProductPage({
@@ -65,17 +66,17 @@ export default async function ProductPage({
              <div className="text-3xl font-light text-primary mb-8">
                 {product.sale_price ? (
                     <>
-                       <span className="line-through text-gray-300 mr-4 text-2xl">{formatPrice(product.price)}</span>
-                       <span className="text-red-500 font-medium">{formatPrice(product.sale_price)}</span>
+                       <span className="line-through text-gray-300 mr-4 text-2xl" suppressHydrationWarning>{formatPrice(product.price)}</span>
+                       <span className="text-red-500 font-medium" suppressHydrationWarning>{formatPrice(product.sale_price)}</span>
                     </>
                 ) : (
-                    <span>{formatPrice(product.price)}</span>
+                    <span suppressHydrationWarning>{formatPrice(product.price)}</span>
                 )}
              </div>
 
-             <p className="text-gray-500 leading-relaxed mb-8 border-b border-gray-100 pb-8">
+             <div className="text-gray-500 leading-relaxed mb-8 border-b border-gray-100 pb-8">
                 {product.description}
-             </p>
+             </div>
 
              {/* Actions */}
              <div className="mb-8">
@@ -90,22 +91,18 @@ export default async function ProductPage({
                     <span className="text-sm text-gray-400">SKU: {product.slug}</span>
                 </div>
                 
-                <button 
-                  className="w-full bg-primary text-white py-4 rounded-full font-medium hover:bg-accent hover:text-white transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={product.inventory <= 0}
-                >
-                   <ShoppingBag size={20} />
-                   <span>Thêm vào giỏ</span>
-                </button>
+                <AddToCartButton productId={product.id} inventory={product.inventory} />
              </div>
 
              {/* Accordion / Content placeholder */}
              <div className="mt-auto">
                  <h3 className="font-bold text-primary border-b pb-2 mb-4">Mô tả chi tiết</h3>
-                 <div className="prose prose-sm text-gray-500 max-w-none" dangerouslySetInnerHTML={{ __html: product.content || '' }} />
+                 <div className="prose prose-sm text-gray-500 max-w-none" dangerouslySetInnerHTML={{ __html: product.content || '' }} suppressHydrationWarning={true} />
              </div>
           </div>
        </div>
     </div>
   );
 }
+
+

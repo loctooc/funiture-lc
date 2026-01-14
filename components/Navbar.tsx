@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, User, Menu, X } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, X, LogOut } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -11,7 +12,9 @@ export default function Navbar() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const router = useRouter();
+  const { user, logout, cartCount } = useAuth();
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
@@ -98,7 +101,7 @@ export default function Navbar() {
                         </div>
                         <div className="flex-1 min-w-0">
                            <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
-                           <p className="text-xs text-red-500 font-medium">
+                           <p className="text-xs text-red-500 font-medium" suppressHydrationWarning>
                               {product.sale_price 
                                 ? Math.floor(product.sale_price).toLocaleString('vi-VN') + 'đ' 
                                 : Math.floor(product.price).toLocaleString('vi-VN') + 'đ'}
@@ -112,11 +115,51 @@ export default function Navbar() {
 
           <button className="hover:text-accent transition-colors p-1 relative" aria-label="Cart">
             <ShoppingCart size={20} />
-            <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">0</span>
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                {cartCount}
+              </span>
+            )}
           </button>
-          <button className="hover:text-accent transition-colors p-1" aria-label="Account">
-            <User size={20} />
-          </button>
+          <div className="relative">
+            {user ? (
+              <button 
+                className="hover:text-accent transition-colors p-1 flex items-center gap-2"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                aria-label="Account"
+              >
+                <User size={20} />
+                <span className="hidden lg:block text-sm font-medium max-w-[100px] truncate">{user.name}</span>
+              </button>
+            ) : (
+              <Link href="/login" className="hover:text-accent transition-colors p-1" aria-label="Login">
+                <User size={20} />
+              </Link>
+            )}
+
+            {/* User Dropdown */}
+            {isUserMenuOpen && user && (
+              <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 animate-fade-in">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                </div>
+                {/* <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                  Profile
+                </Link> */}
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsUserMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <LogOut size={16} />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Mobile Menu Button */}
