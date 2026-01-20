@@ -91,9 +91,10 @@ export async function POST(request: Request) {
       });
     }
 
+
     // Calculate count
     const countResult = await db('cart_items').where('cart_id', cart.id).sum('quantity as total');
-    const totalCount = countResult[0].total || 0;
+    const totalCount = parseInt(countResult[0].total || 0);
 
     const response = NextResponse.json(
       { message: 'Item added to cart', cartCount: totalCount },
@@ -115,13 +116,15 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const userId = await getUserId();
     const sessionId = await getSessionId();
+    const { searchParams } = new URL(request.url);
+    const detail = searchParams.get('detail') === 'true';
 
     if (!userId && !sessionId) {
-       return NextResponse.json({ cartCount: 0 });
+       return NextResponse.json({ cartCount: 0, items: [] });
     }
 
     let cart;
@@ -132,13 +135,102 @@ export async function GET() {
     }
 
     if (!cart) {
-      return NextResponse.json({ cartCount: 0 });
+      return NextResponse.json({ cartCount: 0, items: [] });
     }
 
     const countResult = await db('cart_items').where('cart_id', cart.id).sum('quantity as total');
-    return NextResponse.json({ cartCount: countResult[0].total || 0 });
+    const totalCount = parseInt(countResult[0].total || 0);
+
+    if (detail) {
+      const items = await db('cart_items')
+        .join('products', 'cart_items.product_id', 'products.id')
+        .where('cart_items.cart_id', cart.id)
+        .select(
+          'cart_items.id',
+          'cart_items.quantity',
+          'cart_items.product_id',
+          'products.name',
+          'products.slug',
+          'products.image',
+          'products.price',
+          'products.sale_price'
+        );
+      
+      return NextResponse.json({ cartCount: totalCount, items });
+    }
+
+    return NextResponse.json({ cartCount: totalCount });
 
   } catch (error) {
-     return NextResponse.json({ cartCount: 0 });
+     console.error('Get cart error:', error);
+     return NextResponse.json({ cartCount: 0, items: [] });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const userId = await getUserId();
+    const sessionId = await getSessionId();
+    const { itemId, quantity } = await request.json();
+
+    let cart;
+    if (userId) {
+      cart = await db('carts').where('user_id', userId).where('status', 'pending').first();
+    } else if (sessionId) {
+      cart = await db('carts').where('session_id', sessionId).where('status', 'pending').first();
+    }
+
+    if (!cart) {
+      return NextResponse.json({ message: 'Cart not found' }, { status: 404 });
+    }
+
+    await db('cart_items')
+      .where('id', itemId)
+      .where('cart_id', cart.id)
+      .update({ quantity, updated_at: new Date() });
+    
+    // Recalculate count
+    const countResult = await db('cart_items').where('cart_id', cart.id).sum('quantity as total');
+    const totalCount = parseInt(countResult[0].total || 0);
+
+    return NextResponse.json({ success: true, cartCount: totalCount });
+
+  } catch (error) {
+    console.error('Update cart error:', error);
+    return NextResponse.json({ message: 'Error updating cart' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const userId = await getUserId();
+    const sessionId = await getSessionId();
+    const { itemId } = await request.json();
+
+    let cart;
+    if (userId) {
+      cart = await db('carts').where('user_id', userId).where('status', 'pending').first();
+    } else if (sessionId) {
+      cart = await db('carts').where('session_id', sessionId).where('status', 'pending').first();
+    }
+
+    if (!cart) {
+      return NextResponse.json({ message: 'Cart not found' }, { status: 404 });
+    }
+
+    await db('cart_items')
+      .where('id', itemId)
+      .where('cart_id', cart.id)
+      .del();
+    
+    // Recalculate count
+    const countResult = await db('cart_items').where('cart_id', cart.id).sum('quantity as total');
+    const totalCount = parseInt(countResult[0].total || 0);
+
+    return NextResponse.json({ success: true, cartCount: totalCount });
+
+  } catch (error) {
+    console.error('Delete cart item error:', error);
+    return NextResponse.json({ message: 'Error deleting item' }, { status: 500 });
   }
 }

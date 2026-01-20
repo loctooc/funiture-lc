@@ -1,7 +1,8 @@
 
 import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
+import jwt from 'jsonwebtoken';
+import db from '@/lib/db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -18,13 +19,23 @@ export async function GET() {
 
   try {
     const { value } = token;
-    const decoded = jwt.verify(value, JWT_SECRET);
+    const decoded: any = jwt.verify(value, JWT_SECRET);
+
+    const user = await db('users')
+      .where('id', decoded.userId)
+      .select('id', 'name', 'email', 'role', 'phone', 'avatar', 'created_at')
+      .first();
+
+    if (!user) {
+        return NextResponse.json({ message: 'User not found' }, { status: 404 });
+    }
 
     return NextResponse.json(
-      { user: decoded },
+      { user },
       { status: 200 }
     );
   } catch (error) {
+    console.error('Auth check error:', error);
     return NextResponse.json(
       { message: 'Invalid token' },
       { status: 401 }

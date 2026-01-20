@@ -113,14 +113,14 @@ export default function Navbar() {
             )}
           </div>
 
-          <button className="hover:text-accent transition-colors p-1 relative" aria-label="Cart">
+          <Link href="/cart" className="hover:text-accent transition-colors p-1 relative" aria-label="Cart">
             <ShoppingCart size={20} />
             {cartCount > 0 && (
               <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
                 {cartCount}
               </span>
             )}
-          </button>
+          </Link>
           <div className="relative">
             {user ? (
               <button 
@@ -144,9 +144,9 @@ export default function Navbar() {
                   <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
                   <p className="text-xs text-gray-500 truncate">{user.email}</p>
                 </div>
-                {/* <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                  Profile
-                </Link> */}
+                <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                  Tài khoản
+                </Link>
                 <button
                   onClick={() => {
                     logout();
