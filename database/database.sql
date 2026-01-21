@@ -121,6 +121,7 @@ CREATE TABLE `orders`  (
   `status` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `payment_method` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'cod',
   `user_id` int NULL DEFAULT NULL,
+  `promotion_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
@@ -140,3 +141,35 @@ CREATE TABLE `order_items`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `order_items_order_id_index`(`order_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
+
+DROP TABLE IF EXISTS `promotions`;
+CREATE TABLE `promotions`  (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `discount` decimal(10, 2) NOT NULL,
+  `type` enum('percent','fixed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'percent',
+  `max_amount` decimal(12, 2) NULL DEFAULT NULL,
+  `min_amount` decimal(12, 2) NOT NULL DEFAULT 0.00,
+  `is_free_ship` tinyint(1) NOT NULL DEFAULT 0,
+  `number_product` int NOT NULL DEFAULT 0,
+  `limit` int NOT NULL DEFAULT 0,
+  `number_uses` int NOT NULL DEFAULT 0,
+  `status` enum('active','pending') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `expired_time` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `promotions_code_unique`(`code` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
+
+DROP TABLE IF EXISTS `promotion_usages`;
+CREATE TABLE `promotion_usages`  (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `phone` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `promotion_id` int NOT NULL,
+  `order_id` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `promotion_usages_phone_index`(`phone` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;

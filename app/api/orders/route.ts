@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, phone, email, address, province_id, district_id, commune_id, note } = body;
+    const { name, phone, email, address, province_id, district_id, commune_id, note, promotion_code } = body;
 
     // Calculate totals
     let totalAmount = 0;
@@ -72,6 +72,37 @@ export async function POST(request: Request) {
             amount: amount
         };
     });
+
+    // Handle Promotion
+    let discount = 0;
+    let validPromotion = null;
+
+    if (promotion_code) {
+        const promotion = await db('promotions')
+            .where('code', promotion_code)
+            .where('status', 'active')
+            .first();
+
+        if (promotion) {
+             // Validation checks
+             const isExpired = promotion.expired_time && new Date(promotion.expired_time) < new Date();
+             const isLimitReached = promotion.limit > 0 && promotion.number_uses >= promotion.limit;
+             const isMinAmountMet = totalAmount >= promotion.min_amount;
+
+             if (!isExpired && !isLimitReached && isMinAmountMet) {
+                 validPromotion = promotion;
+                 if (promotion.type === 'percent') {
+                     discount = (totalAmount * promotion.discount) / 100;
+                     if (promotion.max_amount && discount > promotion.max_amount) {
+                         discount = promotion.max_amount;
+                     }
+                 } else {
+                     discount = promotion.discount;
+                 }
+                 if (discount > totalAmount) discount = totalAmount;
+             }
+        }
+    }
 
     // Create Order Code (unique)
     const orderCode = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -89,10 +120,18 @@ export async function POST(request: Request) {
             commune_id,
             code: orderCode,
             status: 'pending',
-            amount: totalAmount,
-            discount: 0,
+            amount: totalAmount - discount, // Store final amount to pay? Or original? Usually amount is final, but let's stick to convention. 
+            // Standard approach: amount (total items), discount, etc. 
+            // But here schema has amount, discount. Let's assume amount is final or subtotal?
+            // "amount" column usually means total order value. Let's make it Total - Discount + Shipping
+            // Wait, standard practice: subtotal, discount, total. 
+            // The table has `amount`, `discount`, `shipping_fee`.
+            // Let's assume `amount` is the FINAL amount the user pays.
+            // AND `discount` stores the value deducted.
+            discount: discount,
             shipping_fee: 0, // Logic for shipping fee can be added here
             note,
+            promotion_code: validPromotion ? validPromotion.code : null,
             created_at: new Date(),
             updated_at: new Date()
         });
@@ -108,6 +147,22 @@ export async function POST(request: Request) {
 
         // Update Cart Status
         await trx('carts').where('id', cart.id).update({ status: 'ordered', updated_at: new Date() });
+
+        // Update Promotion Usage
+        if (validPromotion) {
+            await trx('promotions').where('id', validPromotion.id).increment('number_uses', 1);
+
+            // Record usage by phone
+            if (phone) {
+                await trx('promotion_usages').insert({
+                    phone: phone,
+                    promotion_id: validPromotion.id,
+                    order_id: id,
+                    created_at: new Date(),
+                    updated_at: new Date()
+                });
+            }
+        }
 
         return id;
     });

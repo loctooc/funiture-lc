@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { User, Package, MapPin, LogOut, Camera, Edit2 } from 'lucide-react';
+import { User, Package, MapPin, LogOut, Camera, Edit2, Ticket } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ORDER_STATUSES, OrderStatus } from '@/lib/constants';
@@ -17,15 +17,33 @@ interface Order {
   amount: number;
   status: string;
   created_at: string;
+  items?: any[]; // Simplified for now
+}
+
+interface Promotion {
+  id: number;
+  code: string;
+  discount: number;
+  type: 'percent' | 'fixed';
+  max_amount: number | null;
+  min_amount: number;
+  is_free_ship: number;
+  limit: number;
+  number_uses: number;
+  expired_time: string | null;
 }
 
 export default function ProfilePage() {
-  const { user, login, logout, loading: authLoading } = useAuth(); // Assuming login updates the user state or we need a way to refresh user
+  const { user, login, logout, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'vouchers'>('profile');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+
+  // Voucher States
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [loadingPromotions, setLoadingPromotions] = useState(false);
 
   // Edit Profile States
   const [isEditing, setIsEditing] = useState(false);
@@ -60,6 +78,27 @@ export default function ProfilePage() {
     }
     fetchOrders();
   }, [user]);
+
+  useEffect(() => {
+    async function fetchPromotions() {
+        if (activeTab === 'vouchers' && promotions.length === 0) {
+            setLoadingPromotions(true);
+            try {
+                const res = await fetch('/api/promotions');
+                if (res.ok) {
+                    const data = await res.json();
+                    setPromotions(data.promotions);
+                }
+            } catch (error) {
+                console.error('Failed to fetch promotions', error);
+            } finally {
+                setLoadingPromotions(false);
+            }
+        }
+    }
+    fetchPromotions();
+  }, [activeTab, promotions.length]);
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
@@ -119,8 +158,6 @@ export default function ProfilePage() {
               const data = await res.json();
               alert('Cập nhật thành công!');
               setIsEditing(false);
-              // Need to update local user state. Ideally AuthContext exposes a refresh or we act like login 
-              // For now, simple reload or we can fetch /api/auth/me again but let's assume we need to trigger re-fetch
               window.location.reload(); 
           } else {
               alert('Có lỗi xảy ra when updating profile');
@@ -159,7 +196,7 @@ export default function ProfilePage() {
                         <p className="text-sm text-gray-500">{user.email}</p>
                    </div>
                    
-                   <nav className="p-2">
+                   <nav className="p-2 space-y-1">
                        <button 
                          onClick={() => setActiveTab('profile')}
                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${activeTab === 'profile' ? 'bg-primary text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -171,6 +208,12 @@ export default function ProfilePage() {
                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${activeTab === 'orders' ? 'bg-primary text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
                        >
                            <Package size={18} /> Đơn mua
+                       </button>
+                       <button 
+                         onClick={() => setActiveTab('vouchers')}
+                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${activeTab === 'vouchers' ? 'bg-primary text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
+                       >
+                           <Ticket size={18} /> Kho voucher
                        </button>
                    </nav>
 
@@ -379,14 +422,6 @@ export default function ProfilePage() {
                                                     </div>
                                                 ))}
                                             </div>
-                                            
-                                            {/* Action Buttons (Optional) */}
-                                            {/* <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-50">
-                                                <button className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Xem chi tiết</button>
-                                                {order.status === 'pending' && (
-                                                    <button className="px-4 py-2 text-sm bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100">Hủy đơn</button>
-                                                )}
-                                            </div> */}
                                         </div>
                                     ))}
                                 </div>
@@ -399,6 +434,65 @@ export default function ProfilePage() {
                                     <Link href="/" className="px-6 py-2 bg-primary text-white rounded-full hover:bg-accent transition-colors shadow-sm hover:shadow-md">
                                         Mua sắm ngay
                                     </Link>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+                
+                {activeTab === 'vouchers' && (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-fade-in">
+                        <div className="p-6 border-b border-gray-100">
+                            <h2 className="text-xl font-bold">Kho Voucher</h2>
+                        </div>
+                        <div className="p-6">
+                            {loadingPromotions ? (
+                                <div className="text-center py-12">
+                                    <div className="w-8 h-8 border-2 border-gray-200 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+                                    <p className="text-gray-500">Đang tải voucher...</p>
+                                </div>
+                            ) : promotions.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {promotions.map((promo) => (
+                                        <div key={promo.id} className="border border-gray-100 rounded-xl p-4 hover:border-primary/50 transition-colors flex bg-gradient-to-r from-red-50 to-white relative overflow-hidden group">
+                                            {/* Decor */}
+                                            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border border-gray-100"></div>
+                                            <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border border-gray-100"></div>
+
+                                            <div className="w-24 bg-primary/10 rounded-lg flex flex-col items-center justify-center p-2 text-primary shrink-0">
+                                                <Ticket size={32} />
+                                                <span className="font-bold text-sm mt-1">VOUCHER</span>
+                                            </div>
+                                            <div className="flex-1 pl-4 flex flex-col justify-center">
+                                                <div className="flex justify-between items-start">
+                                                   <h3 className="font-bold text-gray-900 text-lg">
+                                                    {promo.code}
+                                                   </h3>
+                                                </div>
+                                                
+                                                <div className="text-primary font-bold text-xl my-1">
+                                                    Giảm {promo.type === 'percent' ? `${promo.discount}%` : formatPrice(promo.discount)}
+                                                </div>
+                                                
+                                                <div className="text-sm text-gray-600 mb-1">
+                                                    Đơn tối thiểu {formatPrice(promo.min_amount)}
+                                                </div>
+                                                
+                                                {promo.expired_time && (
+                                                    <div className="text-xs text-gray-400 mt-2">
+                                                        HSD: {new Date(promo.expired_time).toLocaleDateString('vi-VN')}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-16 flex flex-col items-center">
+                                    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                        <Ticket size={32} className="text-gray-300" />
+                                    </div>
+                                    <p className="text-gray-500 mb-4">Chưa có voucher nào</p>
                                 </div>
                             )}
                         </div>

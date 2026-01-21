@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
+import { Ticket, X } from 'lucide-react';
+import VoucherModal from '@/components/VoucherModal';
 
 interface Location {
   id: number;
@@ -44,6 +46,12 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Voucher State
+  const [voucherCode, setVoucherCode] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<{code: string, discount: number} | null>(null);
+  const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
+  const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
+
   // Load Cart
   useEffect(() => {
     async function fetchCart() {
@@ -71,7 +79,7 @@ export default function CheckoutPage() {
             ...prev,
             name: user.name || '',
             email: user.email || '',
-            phone: '', // User might not have phone in basic auth
+            phone: user.phone || '', 
         }));
     }
   }, [user]);
@@ -119,8 +127,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // ... (keep handleProvinceChange and handleDistrictChange but ensure they clear errors)
-  
   // Need to redefine handleProvinceChange to clear errors
   const handleProvinceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const parentId = e.target.value;
@@ -177,6 +183,73 @@ export default function CheckoutPage() {
     }).format(price).replace('₫', 'đ');
   };
 
+  const handleApplyVoucher = async () => {
+      if (!voucherCode) return;
+      setIsValidatingVoucher(true);
+      try {
+          const res = await fetch('/api/promotions/validate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: voucherCode, totalAmount: calculateTotal() }),
+          });
+          const data = await res.json();
+          if (res.ok && data.valid) {
+              setAppliedVoucher({ code: voucherCode, discount: data.discount });
+              showNotification(data.message, 'success');
+              setIsVoucherModalOpen(false); // Close modal if open
+          } else {
+              showNotification(data.message || 'Mã giảm giá không hợp lệ', 'error');
+              setAppliedVoucher(null);
+          }
+      } catch (error) {
+          console.error(error);
+          showNotification('Lỗi khi kiểm tra mã', 'error');
+      } finally {
+          setIsValidatingVoucher(false);
+      }
+  };
+  
+  // When selecting from modal, set code and auto apply
+  const handleSelectVoucher = (code: string) => {
+      setVoucherCode(code);
+      // We can't immediately call handleApplyVoucher because state update is async, 
+      // but we can call duplicate logic or use useEffect. 
+      // For simplicity, let's just trigger logic with the code directly.
+      validateVoucherDirectly(code);
+  };
+
+  const validateVoucherDirectly = async (code: string) => {
+      setIsValidatingVoucher(true);
+      try {
+          const res = await fetch('/api/promotions/validate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: code, totalAmount: calculateTotal() }),
+          });
+          const data = await res.json();
+          if (res.ok && data.valid) {
+              setAppliedVoucher({ code: code, discount: data.discount });
+              setVoucherCode(code); // Ensure input shows code
+              showNotification(data.message, 'success');
+              setIsVoucherModalOpen(false);
+          } else {
+              showNotification(data.message || 'Mã giảm giá không hợp lệ', 'error');
+              setAppliedVoucher(null);
+          }
+      } catch (error) {
+          console.error(error);
+          showNotification('Lỗi khi kiểm tra mã', 'error');
+      } finally {
+          setIsValidatingVoucher(false);
+      }
+  }
+
+  const handleRemoveVoucher = () => {
+      setAppliedVoucher(null);
+      setVoucherCode('');
+      showNotification('Đã gỡ bỏ mã giảm giá', 'success');
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -187,10 +260,15 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     try {
+        const payload = {
+            ...formData,
+            promotion_code: appliedVoucher ? appliedVoucher.code : null
+        };
+
         const res = await fetch('/api/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
+            body: JSON.stringify(payload),
         });
         
         const data = await res.json();
@@ -215,10 +293,19 @@ export default function CheckoutPage() {
      return <div className="text-center py-20">Loading...</div>;
   }
 
+  const finalTotal = calculateTotal() - (appliedVoucher?.discount || 0);
+
   return (
     <div className="container mx-auto px-4 py-12 relative">
       <h1 className="text-3xl font-display font-medium mb-8 text-center">Thanh Toán</h1>
       
+      <VoucherModal 
+        isOpen={isVoucherModalOpen} 
+        onClose={() => setIsVoucherModalOpen(false)} 
+        onSelect={handleSelectVoucher}
+        cartTotal={calculateTotal()}
+      />
+
       {/* Toast Notification */}
       {notification && (
         <div className={`fixed top-24 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-medium animate-fade-in ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
@@ -365,18 +452,65 @@ export default function CheckoutPage() {
                     ))}
                 </div>
 
+                {/* Voucher Input */}
+                <div className="mb-6 border-t pt-4">
+                     <div className="flex gap-2">
+                        <div className="relative flex-1">
+                             <Ticket size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                             <input 
+                                type="text"
+                                placeholder="Mã giảm giá"
+                                value={voucherCode}
+                                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                                disabled={!!appliedVoucher}
+                                className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-primary"
+                             />
+                        </div>
+                        <button 
+                            onClick={handleApplyVoucher}
+                            disabled={!voucherCode || isValidatingVoucher || !!appliedVoucher}
+                            className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isValidatingVoucher ? '...' : 'Áp dụng'}
+                        </button>
+                     </div>
+                     {!appliedVoucher && (
+                         <button 
+                            onClick={() => setIsVoucherModalOpen(true)}
+                            className="text-primary text-sm font-medium mt-2 hover:underline"
+                         >
+                            Chọn voucher có sẵn
+                         </button>
+                     )}
+                     
+                     {appliedVoucher && (
+                         <div className="mt-2 flex justify-between items-center text-sm bg-green-50 text-green-700 px-3 py-2 rounded-lg border border-green-200">
+                             <span className="font-medium">Voucher: {appliedVoucher.code}</span>
+                             <button onClick={handleRemoveVoucher} className="p-1 hover:bg-green-100 rounded-full">
+                                 <X size={14} />
+                             </button>
+                         </div>
+                     )}
+                </div>
+
                 <div className="border-t pt-4 space-y-2">
                     <div className="flex justify-between">
                         <span className="text-gray-600">Tạm tính</span>
                         <span className="font-medium">{formatPrice(calculateTotal())}</span>
                     </div>
+                    {appliedVoucher && (
+                        <div className="flex justify-between text-green-600">
+                            <span>Giảm giá</span>
+                            <span className="font-medium">-{formatPrice(appliedVoucher.discount)}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between">
                         <span className="text-gray-600">Phí vận chuyển</span>
                         <span className="font-medium">Chưa tính</span>
                     </div>
                     <div className="flex justify-between text-xl font-bold pt-2 border-t">
                         <span>Tổng cộng</span>
-                        <span className="text-primary">{formatPrice(calculateTotal())}</span>
+                        <span className="text-primary">{formatPrice(finalTotal)}</span>
                     </div>
                 </div>
 

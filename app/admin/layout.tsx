@@ -1,16 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { LayoutDashboard, ShoppingBag, FolderTree, Settings, Menu } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, FolderTree, Settings, Menu, Package, TicketPercent } from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Admin Dashboard',
-  description: 'Manage your furniture store',
-};
+// ...
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
+  { icon: Package, label: 'Đơn hàng', href: '/admin/orders' },
   { icon: FolderTree, label: 'Danh mục', href: '/admin/categories' },
   { icon: ShoppingBag, label: 'Sản phẩm', href: '/admin/products' },
+  { icon: TicketPercent, label: 'Mã giảm giá', href: '/admin/promotions' },
   { icon: Settings, label: 'Cài đặt', href: '/admin/settings' },
 ];
 
