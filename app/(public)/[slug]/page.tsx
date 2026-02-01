@@ -6,6 +6,7 @@ import { getCategoryBySlug, getProductsByCategory } from "@/lib/categories";
 import ProductGallery from "@/components/ProductGallery";
 import AddToCartButton from "@/components/AddToCartButton";
 import QuickAddButton from "@/components/QuickAddButton";
+import WishlistButton from "@/components/WishlistButton";
 import { ShoppingBag, Star, Check, X, Plus } from "lucide-react";
 
 export default async function DynamicPage({
@@ -92,7 +93,12 @@ export default async function DynamicPage({
                       <span className="text-sm text-gray-400">SKU: {product.slug}</span>
                   </div>
                   
-                  <AddToCartButton productId={product.id} inventory={product.inventory} />
+                  <div className="flex items-center gap-4">
+                      <AddToCartButton productId={product.id} inventory={product.inventory} />
+                      <div className="border border-gray-200 rounded-full">
+                         <WishlistButton productId={product.id} />
+                      </div>
+                  </div>
                </div>
 
                {/* Accordion / Content placeholder */}

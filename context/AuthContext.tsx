@@ -23,6 +23,9 @@ interface AuthContextType {
   checkUser: () => Promise<void>;
   cartCount: number;
   fetchCartCount: () => Promise<void>;
+  wishlist: number[];
+  fetchWishlist: () => Promise<void>;
+  toggleWishlist: (productId: number) => Promise<boolean>; // Returns true if added, false if removed
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -33,12 +36,16 @@ const AuthContext = createContext<AuthContextType>({
   checkUser: async () => {},
   cartCount: 0,
   fetchCartCount: async () => {},
+  wishlist: [],
+  fetchWishlist: async () => {},
+  toggleWishlist: async () => false,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [cartCount, setCartCount] = useState(0);
+  const [wishlist, setWishlist] = useState<number[]>([]);
   const router = useRouter();
 
   const fetchCartCount = async () => {
@@ -50,6 +57,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error('Failed to fetch cart count');
+    }
+  };
+
+  const fetchWishlist = async () => {
+    if (!user) {
+        setWishlist([]);
+        return;
+    }
+    try {
+      const res = await fetch('/api/wishlist');
+      if (res.ok) {
+        const data = await res.json();
+        setWishlist(data.items);
+      }
+    } catch (error) {
+      console.error('Failed to fetch wishlist');
+    }
+  };
+
+  const toggleWishlist = async (productId: number): Promise<boolean> => {
+    if (!user) {
+        router.push('/login');
+        return false;
+    }
+    try {
+        const res = await fetch('/api/wishlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            await fetchWishlist(); // Refresh list
+            return data.action === 'added';
+        }
+        return false;
+    } catch (error) {
+        console.error("Error toggling wishlist", error);
+        return false;
     }
   };
 
@@ -72,6 +118,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    if (user) {
+        fetchWishlist();
+    } else {
+        setWishlist([]);
+    }
+  }, [user]);
+
+  useEffect(() => {
     checkUser();
   }, []);
 
@@ -84,6 +138,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
+      setWishlist([]);
       router.push('/login');
     } catch (error) {
       console.error('Logout failed', error);
@@ -91,10 +146,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, checkUser, cartCount, fetchCartCount }}>
+    <AuthContext.Provider value={{ 
+        user, 
+        loading, 
+        login, 
+        logout, 
+        checkUser, 
+        cartCount, 
+        fetchCartCount,
+        wishlist,
+        fetchWishlist,
+        toggleWishlist
+    }}>
       {children}
     </AuthContext.Provider>
   );
 };
-
 export const useAuth = () => useContext(AuthContext);

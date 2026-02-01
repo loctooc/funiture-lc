@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, User, Menu, X, LogOut } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, X, LogOut, Heart } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
@@ -14,7 +14,7 @@ export default function Navbar() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const router = useRouter();
-  const { user, logout, cartCount } = useAuth();
+  const { user, logout, cartCount, wishlist } = useAuth();
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
@@ -113,6 +113,14 @@ export default function Navbar() {
             )}
           </div>
 
+          <Link href="/wishlist" className="hover:text-accent transition-colors p-1 relative" aria-label="Wishlist">
+            <Heart size={20} />
+            {wishlist.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                {wishlist.length}
+              </span>
+            )}
+          </Link>
           <Link href="/cart" className="hover:text-accent transition-colors p-1 relative" aria-label="Cart">
             <ShoppingCart size={20} />
             {cartCount > 0 && (
