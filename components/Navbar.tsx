@@ -184,6 +184,30 @@ export default function Navbar() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
              />
+             {suggestions.length > 0 && (
+                <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                   {suggestions.map((product) => (
+                      <Link 
+                         key={product.id} 
+                         href={`/${product.slug}`}
+                         onClick={() => setIsMobileMenuOpen(false)}
+                         className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                      >
+                         <div className="w-10 h-10 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                         </div>
+                         <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                            <p className="text-xs text-red-500 font-medium" suppressHydrationWarning>
+                               {product.sale_price 
+                                 ? Math.floor(product.sale_price).toLocaleString('vi-VN') + 'đ' 
+                                 : Math.floor(product.price).toLocaleString('vi-VN') + 'đ'}
+                            </p>
+                         </div>
+                      </Link>
+                   ))}
+                </div>
+             )}
           </div>
           <MobileNavLink href="/" onClick={() => setIsMobileMenuOpen(false)}>Home</MobileNavLink>
           <MobileNavLink href="/shop" onClick={() => setIsMobileMenuOpen(false)}>Shop</MobileNavLink>
